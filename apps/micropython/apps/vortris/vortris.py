@@ -7,6 +7,12 @@ from .rotaciones import ROTACIONES
 COLS = 16
 ROWS = 18
 
+# check rotaciones for mistakes
+for rotidx, rotacion in enumerate(ROTACIONES):
+    for frame in rotacion:
+        if len(frame)!=16:
+            raise Exception(f"Rot: {rotidx} - invalid frame: {repr(frame)}")
+
 class Pieza(Sprite):
     def reset(self, col, row, shape_id, rotation_id=None):
         self.col = col
@@ -107,13 +113,17 @@ class BasicBoard:
         return instance
 
     def collision(self, grilla, new_col, new_row):
-        for y in range(4):
-            for x in range(4):
-                if grilla[y*4+x] == "X":
-                    if x + new_col < 0 or x + new_col >= COLS or y + new_row >= ROWS:
-                        return True
-                    if y + new_row >= 0 and self.board[(new_row + y) * COLS + (new_col + x)]:
-                        return True
+        try:
+            for y in range(4):
+                for x in range(4):
+                    if grilla[y*4+x] == "X":
+                        if x + new_col < 0 or x + new_col >= COLS or y + new_row >= ROWS:
+                            return True
+                        if y + new_row >= 0 and self.board[(new_row + y) * COLS + (new_col + x)]:
+                            return True
+        except:
+            print(repr(grilla))
+            raise # '        XXXX'
         return False
 
     def freeze(self, current, grilla):
