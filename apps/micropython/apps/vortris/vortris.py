@@ -8,11 +8,11 @@ COLS = 16
 ROWS = 18
 
 class Pieza(Sprite):
-    def reset(self, col, row, shape_id):
+    def reset(self, col, row, shape_id, rotation_id=None):
         self.col = col
         self.row = row
         self.shape_id = shape_id
-        self.rotation = randrange(4)
+        self.rotation = randrange(4) if rotation_id is None else rotation_id
         self.show()
 
     def show(self):
@@ -29,14 +29,81 @@ class Pieza(Sprite):
         return ROTACIONES[self.shape_id][self.rotation]
 
     def moved(self, dx, dy):
-        p = Pieza()
-        p.reset(self.col+dx, self.row+dy, self.shape_id)
-        p.rotation = self.rotation
+        p = ProtoPieza()
+        p.reset(self.col+dx, self.row+dy, self.shape_id, self.rotation)
         return p
+
+
+class ProtoPieza:
+    def reset(self, col, row, shape_id, rotation_id=None):
+        self.col = col
+        self.row = row
+        self.shape_id = shape_id
+        self.rotation = randrange(4) if rotation_id is None else rotation_id
+        self.show()
+    def show(self):
+        pass
+    def rotate(self):
+        self.rotation = (self.rotation + 1) % 4
+        self.show()
+    def grilla_actual(self):
+        return ROTACIONES[self.shape_id][self.rotation]
+    def moved(self, dx, dy):
+        p = ProtoPieza()
+        p.reset(self.col+dx, self.row+dy, self.shape_id, self.rotation)
+        return p
+
+
+BORDER = 2
+OCCUPIED = 1
+EMPTY = 0
+VOID = 3
+W = {EMPTY: '_', OCCUPIED: 'X', BORDER: '|', VOID: ' '}
+
+class Consola:
+    CCOLS = (COLS+5)*3
+    CROWS = ROWS+1
+    def __init__(self):
+        self.board = bytearray(self.CCOLS * self.CROWS)
+        for x in range(self.CCOLS * self.CROWS):
+            self.board[x] = VOID
+
+    def show(self):
+        # print('  123456789 123456789 123456789 123456789 123456789 123456789 123456789 ')
+        print('  123456[ fijo ]56789 1234567 [c/pieza] 9 123456789 [aftermove]23456789 ')
+        for row in range(self.CROWS):
+            print('%02d ' % row, end='')
+            for col in range(self.CCOLS):
+                c = self.board[row * self.CCOLS + col]
+                print(W[c], end='')
+            print()
+        print()
+
+    def set(self, x, y):
+        self.reset(x,y,OCCUPIED)
+
+    def reset(self, x, y, kind=EMPTY):
+        self.board[y * self.CCOLS + x] = kind
+
+
 
 class BasicBoard:
     def __init__(self):
         self.board = bytearray(COLS * ROWS)
+
+    def copyAt(self, other: Consola, sx, sy):
+        for row in range(ROWS):
+            for col in range(COLS):
+                if self.board[row * COLS + col]:
+                    other.set(col+sx, row+sy)
+                else:
+                    other.reset(col+sx, row+sy)
+        for row in range(ROWS):
+            other.reset(-1 + sx, row + sy, BORDER)
+            other.reset(COLS + sx, row + sy, BORDER)
+        for col in range(COLS):
+            print(col, col+sx, ROWS+1)
+            other.reset(col + sx, ROWS+sy, BORDER)
 
     @classmethod
     def Copy(cls, _from):
@@ -117,14 +184,20 @@ class Tablero:
         new_col = self.current.col + dx
         new_row = self.current.row + dy
 
-        b = BasicBoard.Copy(self.board)
-        b.freeze(self.current, self.grilla)
-        b.show_board("pre")
+        b1 = BasicBoard.Copy(self.board)
+        b1.freeze(self.current, self.grilla)
+        # b.show_board("pre")
 
-        moved_piece = self.current.moved(dx, dy)
-        b = BasicBoard.Copy(self.board)
-        b.freeze(moved_piece, self.grilla)
-        b.show_board("post")
+        moved_piece = self.current.moved(dx,dy)
+        b2 = BasicBoard.Copy(self.board)
+        b2.freeze(moved_piece, self.grilla)
+        # b.show_board("post")
+
+        c = Consola()
+        self.board.copyAt(c, 2, 0)
+        b1.copyAt(c, 2+5+COLS, 0)
+        b2.copyAt(c, 2+2*(5+COLS), 0)
+        c.show()
 
         # self.board.show_board('actual')
         if not self.board.collision(self.grilla, new_col, new_row):
