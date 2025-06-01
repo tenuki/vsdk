@@ -57,14 +57,13 @@ def generate_rom(folder, palettegroups):
     rom_strips = []
     palettes = []
     attributes = {}
-    rom_name = folder.parts[-1]
-
+    rom_name = Path(folder).parts[-1]
     for palnumber, group in enumerate(palettegroups):
         images = {}
         images_opts = {}
 
         for filename, file_opts in group:
-            image = Image.open(folder / filename).convert("RGBA")
+            image = Image.open(Path(folder) / Path(filename)).convert("RGBA")
             if file_opts.get("process") == "reproject":
                 print("reprojecting", filename, file=sys.stderr)
                 image = reproject(image, n_led=file_opts["radius"])
@@ -167,8 +166,9 @@ def strip(filename, frames=1):
 def fullscreen(filename, radius=54):
     return filename, dict(frames=1, radius=radius, process="reproject")
 
-for root, dirs, files in Path(ROOT_FOLDER).walk(on_error=print):
+for root, dirs, files in os.walk(ROOT_FOLDER): # , on_error=print):
     if STRIPEDEF_FILENAME in files:
-        stripedef = open(root / STRIPEDEF_FILENAME).read()
-        parsed = exec(stripedef)
+        stripedef = open(Path(root) / STRIPEDEF_FILENAME).read()
+        stripes = None
+        exec(stripedef, globals(), locals())  # this defines stripes
         generate_rom(root, stripes)
