@@ -14,7 +14,7 @@ class Pieza(Sprite):
         self.shape_id = shape_id
         self.rotation = randrange(4)
         self.show()
-    
+
     def show(self):
         self.set_x(self.col * 8 + 64)
         self.set_y(self.row * 8)
@@ -28,72 +28,123 @@ class Pieza(Sprite):
     def grilla_actual(self):
         return ROTACIONES[self.shape_id][self.rotation]
 
+    def moved(self, dx, dy):
+        p = Pieza()
+        p.reset(self.col+dx, self.row+dy, self.shape_id)
+        p.rotation = self.rotation
+        return p
 
-class Tablero:
+class BasicBoard:
     def __init__(self):
-        self.unused_pieces = [Pieza() for _ in range(80)]
         self.board = bytearray(COLS * ROWS)
-        self.score = 0
-        self.gameover = False
-        self.spawn()
 
-    def spawn(self):
-        self.current = self.unused_pieces.pop()
-        self.current.reset(COLS // 2 - 2, 2, randrange(7))
-        if self.collision(self.current.col, self.current.row, self.current.rotation):
-            self.gameover = True
+    @classmethod
+    def Copy(cls, _from):
+        instance = cls()
+        instance.board = bytearray.fromhex(_from.board.hex())
+        return instance
 
-    def collision(self, new_col, new_row, new_rotation):
-        grilla_pieza = ROTACIONES[self.current.shape_id][new_rotation]
+    def collision(self, grilla, new_col, new_row):
         for y in range(4):
             for x in range(4):
-                if grilla_pieza[y*4+x] == "X":
+                if grilla[y*4+x] == "X":
                     if x + new_col < 0 or x + new_col >= COLS or y + new_row >= ROWS:
                         return True
                     if y + new_row >= 0 and self.board[(new_row + y) * COLS + (new_col + x)]:
                         return True
         return False
 
-    def freeze(self):
-        grilla_pieza = ROTACIONES[self.current.shape_id][self.current.rotation]
+    def freeze(self, current, grilla):
         for y in range(4):
             for x in range(4):
-                if grilla_pieza[y*4+x] == "X":
-                    if y + self.current.row >= 0:
-                        self.board[(self.current.row + y) * COLS + (self.current.col + x)] = 1
+                if grilla[y*4+x] == "X":
+                    if y + current.row >= 0:
+                        self.board[(current.row + y) * COLS + (current.col + x)] = 1
+
+    def show_board(self, msg=None):
+        print('  ', end='')
+        for i in range(COLS):
+            print('%0d'%(i%10), end='')
+        print(' ', msg)
         for row in range(ROWS):
+            print('%02d' % row, end='')
             for col in range(COLS):
                 print("X" if self.board[row * COLS + col] else "_", end='')
             print()
-        self.spawn()
+        print()
 
     def clear_lines(self):
         new_board = [row for row in self.board if any(cell is None for cell in row)]
         lines_cleared = ROWS - len(new_board)
-        self.score += lines_cleared
+        # self.score += lines_cleared
         for _ in range(lines_cleared):
             new_board.insert(0, [None for _ in range(COLS)])
         self.board = new_board
+        return lines_cleared
+
+
+class Tablero:
+    def __init__(self):
+        self.unused_pieces = [Pieza() for _ in range(80)]
+        self.board = BasicBoard()
+        self.score = 0
+        self.gameover = False
+        self.spawn()
+
+    @property
+    def grilla(self):
+        return ROTACIONES[self.current.shape_id][self.current.rotation]
+    @property
+    def next_grilla(self):
+        return ROTACIONES[self.current.shape_id][(self.current.rotation + 1) % 4]
+
+    def spawn(self):
+        self.current = self.unused_pieces.pop()
+        self.current.reset(COLS // 2 - 2, 2, randrange(7))
+        if self.board.collision(self.grilla, self.current.col, self.current.row):
+            self.gameover = True
+
+    def freeze(self):
+        self.board.freeze(self.current, self.grilla)
+        self.board.show_board()
+        # self.show_board()
+        self.spawn()
+
+    def clear_lines(self):
+        self.score += self.board.clear_lines()
 
     def move(self, dx, dy):
         new_col = self.current.col + dx
         new_row = self.current.row + dy
-        if not self.collision(new_col, new_row, self.current.rotation):
+
+        b = BasicBoard.Copy(self.board)
+        b.freeze(self.current, self.grilla)
+        b.show_board("pre")
+
+        moved_piece = self.current.moved(dx, dy)
+        b = BasicBoard.Copy(self.board)
+        b.freeze(moved_piece, self.grilla)
+        b.show_board("post")
+
+        # self.board.show_board('actual')
+        if not self.board.collision(self.grilla, new_col, new_row):
             self.current.col = new_col
             self.current.row = new_row
             self.current.show()
             return True
+        else:
+            print("collision detected")
         return False
 
     def rotate(self):
         new_rotation = (self.current.rotation + 1) % 4
-        if not self.collision(self.current.col, self.current.row, new_rotation):
+        if not self.board.collision(self.next_grilla, self.current.col, self.current.row):
             self.current.rotation = new_rotation
             self.current.show()
 
     def drop(self):
         if not self.move(0, 1):
-            self.freeze()
+            self.board.freeze(self.current, self.grilla)
 
 
 class Vortris(Scene):
