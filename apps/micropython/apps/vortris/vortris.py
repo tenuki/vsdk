@@ -23,10 +23,8 @@ class Pieza(Sprite):
 
     def rotate(self):
         self.rotation = (self.rotation + 1) % 4
+        print("acutal rot:", self.rotation)
         self.show()
-
-    def grilla_actual(self):
-        return ROTACIONES[self.shape_id][self.rotation]
 
     def moved(self, dx, dy):
         p = ProtoPieza()
@@ -46,8 +44,6 @@ class ProtoPieza:
     def rotate(self):
         self.rotation = (self.rotation + 1) % 4
         self.show()
-    def grilla_actual(self):
-        return ROTACIONES[self.shape_id][self.rotation]
     def moved(self, dx, dy):
         p = ProtoPieza()
         p.reset(self.col+dx, self.row+dy, self.shape_id, self.rotation)
@@ -127,6 +123,12 @@ class BasicBoard:
                     if y + current.row >= 0:
                         self.board[(current.row + y) * COLS + (current.col + x)] = 1
 
+    def pfreeze(self, current, grilla):
+        try:
+            self.freeze(current, grilla)
+        except IndexError:
+            pass
+
     def show_board(self, msg=None):
         print('  ', end='')
         for i in range(COLS):
@@ -185,12 +187,11 @@ class Tablero:
 
         b1 = BasicBoard.Copy(self.board)
         b1.freeze(self.current, self.grilla)
-        # b.show_board("pre")
-
+        print("pre:", self.current.rotation)
         moved_piece = self.current.moved(dx,dy)
         b2 = BasicBoard.Copy(self.board)
-        b2.freeze(moved_piece, self.grilla)
-        # b.show_board("post")
+        print("moved:", moved_piece.rotation)
+        b2.pfreeze(moved_piece, self.grilla)
 
         c = Consola()
         self.board.copyAt(c, 2, 0)
