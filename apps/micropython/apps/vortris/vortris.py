@@ -102,7 +102,6 @@ class BasicBoard:
             other.reset(-1 + sx, row + sy, BORDER)
             other.reset(COLS + sx, row + sy, BORDER)
         for col in range(COLS):
-            print(col, col+sx, ROWS+1)
             other.reset(col + sx, ROWS+sy, BORDER)
 
     @classmethod
